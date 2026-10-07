@@ -2,10 +2,11 @@
 
 namespace App\Http\Resources;
 
+use App\Models\PurchaseOrderLine;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin \App\Models\PurchaseOrderLine */
+/** @mixin PurchaseOrderLine */
 class PurchaseOrderLineResource extends JsonResource
 {
     /**

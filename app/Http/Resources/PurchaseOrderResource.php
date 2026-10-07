@@ -3,11 +3,12 @@
 namespace App\Http\Resources;
 
 use App\Domain\PurchaseOrders\PurchaseOrderStatus;
+use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderLine;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin \App\Models\PurchaseOrder */
+/** @mixin PurchaseOrder */
 class PurchaseOrderResource extends JsonResource
 {
     /**
