@@ -60,7 +60,7 @@ async function transition(action: 'approve' | 'receive'): Promise<void> {
         </section>
 
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <section class="card overflow-hidden lg:col-span-2">
+            <section class="card self-start overflow-hidden lg:col-span-2">
                 <table class="table">
                     <thead class="bg-slate-50">
                         <tr>
@@ -90,7 +90,7 @@ async function transition(action: 'approve' | 'receive'): Promise<void> {
                 </table>
             </section>
 
-            <aside class="card p-5">
+            <aside class="card self-start p-5">
                 <dl class="space-y-4 text-sm">
                     <div>
                         <dt class="text-slate-500">Branch</dt>

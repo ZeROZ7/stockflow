@@ -1,9 +1,16 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "israel-jensen/stockflow",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
+    "description": "Inventory & purchase-order demo for multi-branch stores: Laravel 13 API + Vue 3 SPA, with a hexagonal purchasing module.",
+    "keywords": [
+        "laravel",
+        "vue",
+        "sanctum",
+        "pest",
+        "hexagonal-architecture",
+        "inventory"
+    ],
     "license": "MIT",
     "require": {
         "php": "^8.3",
@@ -38,8 +45,9 @@
             "composer install",
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
             "@php artisan key:generate",
-            "@php artisan migrate --force",
-            "npm install --ignore-scripts",
+            "@php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
+            "@php artisan migrate --seed --force",
+            "npm install",
             "npm run build"
         ],
         "dev": [
@@ -84,5 +92,11 @@
         }
     },
     "minimum-stability": "stable",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "authors": [
+        {
+            "name": "Israel Jensen",
+            "email": "israel.jensen@gmail.com"
+        }
+    ]
 }
