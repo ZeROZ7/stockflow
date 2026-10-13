@@ -18,6 +18,11 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // Sanctum SPA auth: requests coming from the Vue app use the session cookie.
         $middleware->statefulApi();
+
+        // Behind nginx / a Kubernetes Ingress: trust X-Forwarded-* from the proxies listed in TRUSTED_PROXIES ("*" = any).
+        if ($proxies = env('TRUSTED_PROXIES')) {
+            $middleware->trustProxies(at: $proxies === '*' ? '*' : array_map('trim', explode(',', $proxies)));
+        }
         $middleware->redirectGuestsTo('/login');
     })
     ->withExceptions(function (Exceptions $exceptions): void {

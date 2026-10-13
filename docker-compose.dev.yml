@@ -1,0 +1,35 @@
+# Dev overlay: live-edit PHP and use the Vite dev server (HMR).
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+# PHP source is bind-mounted (vendor stays inside the image); Vite serves assets on :5173.
+services:
+  app:
+    environment:
+      PHP_OPCACHE_VALIDATE_TIMESTAMPS: "1"
+    volumes: &src
+      - ./app:/var/www/html/app
+      - ./config:/var/www/html/config
+      - ./database/migrations:/var/www/html/database/migrations
+      - ./database/seeders:/var/www/html/database/seeders
+      - ./database/factories:/var/www/html/database/factories
+      - ./resources:/var/www/html/resources
+      - ./routes:/var/www/html/routes
+      - ./tests:/var/www/html/tests
+      - ./public:/var/www/html/public
+
+  migrate:
+    volumes: *src
+
+  vite:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm ci --no-audit --no-fund && npx vite --host 0.0.0.0"
+    environment:
+      VITE_HMR_HOST: localhost
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+
+volumes:
+  node_modules:

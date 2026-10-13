@@ -29,6 +29,8 @@ export default defineConfig({
         },
     },
     server: {
+        // Inside Docker (docker-compose.dev.yml) the browser reaches Vite via localhost:5173.
+        hmr: process.env.VITE_HMR_HOST ? { host: process.env.VITE_HMR_HOST } : undefined,
         watch: {
             ignored: ['**/storage/framework/views/**'],
         },
