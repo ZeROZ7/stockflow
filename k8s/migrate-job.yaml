@@ -17,7 +17,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: migrate
-          image: ghcr.io/israel-jensen/stockflow-app:latest
+          image: ghcr.io/ZeROZ7/stockflow-app:latest
           args: ["migrate"]
           envFrom:
             - configMapRef: { name: stockflow-config }

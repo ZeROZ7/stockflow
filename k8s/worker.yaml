@@ -17,7 +17,7 @@ spec:
       terminationGracePeriodSeconds: 60
       containers:
         - name: worker
-          image: ghcr.io/israel-jensen/stockflow-app:latest
+          image: ghcr.io/ZeROZ7/stockflow-app:latest
           args: ["php", "artisan", "queue:work", "--sleep=1", "--tries=3", "--max-time=3600"]
           envFrom:
             - configMapRef: { name: stockflow-config }

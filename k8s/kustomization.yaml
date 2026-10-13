@@ -10,7 +10,7 @@ resources:
   - worker.yaml
   - ingress.example.yaml
 images:
-  - name: ghcr.io/israel-jensen/stockflow-app
+  - name: ghcr.io/ZeROZ7/stockflow-app
     newTag: latest
-  - name: ghcr.io/israel-jensen/stockflow-web
+  - name: ghcr.io/ZeROZ7/stockflow-web
     newTag: latest

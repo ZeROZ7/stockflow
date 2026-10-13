@@ -1,6 +1,6 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "israel-jensen/stockflow",
+    "name": "ZeROZ7/stockflow",
     "type": "project",
     "description": "Inventory & purchase-order demo for multi-branch stores: Laravel 13 API + Vue 3 SPA, with a hexagonal purchasing module.",
     "keywords": [

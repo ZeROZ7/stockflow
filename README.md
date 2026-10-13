@@ -1,6 +1,6 @@
 # StockFlow
 
-![tests](https://github.com/israel-jensen/stockflow/actions/workflows/tests.yml/badge.svg)
+![tests](https://github.com/ZeROZ7/stockflow/actions/workflows/tests.yml/badge.svg)
 
 **StockFlow** is a small inventory & purchase-order app for a multi-branch food business (a fictional sandwich & coffee chain in Chile). Branches keep stock of shared products, staff raise **purchase orders**, a manager **approves** them, and when the goods arrive the order is **received** and branch stock goes up. The dashboard shows which branch is running low on what.
 
@@ -148,7 +148,7 @@ sequenceDiagram
 Requirements: PHP 8.3+ with `pdo_sqlite`, `mbstring`, `xml`, `curl`, `zip`, `bcmath`, `intl`, Composer 2, and Node 20+.
 
 ```bash
-git clone https://github.com/israel-jensen/stockflow.git
+git clone https://github.com/ZeROZ7/stockflow.git
 cd stockflow
 
 composer install
