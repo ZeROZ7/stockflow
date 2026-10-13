@@ -1,0 +1,79 @@
+# One pod = nginx + php-fpm sidecar pair (talk over 127.0.0.1:9000).
+# They scale together 1:1, so a single Deployment keeps routing and rollout simple.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stockflow-web
+  namespace: stockflow
+  labels: &labels
+    app.kubernetes.io/name: stockflow
+    app.kubernetes.io/component: web
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels: *labels
+  template:
+    metadata:
+      labels: *labels
+    spec:
+      securityContext:
+        seccompProfile: { type: RuntimeDefault }
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: php-fpm
+          image: ghcr.io/israel-jensen/stockflow-app:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: fastcgi, containerPort: 9000 }
+          envFrom:
+            - configMapRef: { name: stockflow-config }
+            - secretRef: { name: stockflow-secrets }
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 82
+            runAsGroup: 82
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          readinessProbe:
+            exec: { command: ["php-fpm-healthcheck"] }
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            exec: { command: ["php-fpm-healthcheck"] }
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 3
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: "1", memory: 512Mi }
+        - name: nginx
+          image: ghcr.io/israel-jensen/stockflow-web:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http, containerPort: 80 }
+          env:
+            - name: PHP_FPM_HOST
+              valueFrom:
+                configMapKeyRef: { name: stockflow-config, key: PHP_FPM_HOST }
+          # Readiness hits Laravel's /up through nginx -> php-fpm (full request path).
+          readinessProbe:
+            httpGet: { path: /up, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          # Liveness only checks nginx itself, so a DB hiccup doesn't restart pods.
+          livenessProbe:
+            httpGet: { path: /nginx-health, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 20
+          lifecycle:
+            preStop:
+              exec: { command: ["sh", "-c", "sleep 5"] }
+          resources:
+            requests: { cpu: 50m, memory: 32Mi }
+            limits: { cpu: 500m, memory: 128Mi }

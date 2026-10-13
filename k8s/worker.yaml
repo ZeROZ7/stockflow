@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stockflow-worker
+  namespace: stockflow
+  labels: &labels
+    app.kubernetes.io/name: stockflow
+    app.kubernetes.io/component: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels: *labels
+  template:
+    metadata:
+      labels: *labels
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: worker
+          image: ghcr.io/israel-jensen/stockflow-app:latest
+          args: ["php", "artisan", "queue:work", "--sleep=1", "--tries=3", "--max-time=3600"]
+          envFrom:
+            - configMapRef: { name: stockflow-config }
+            - secretRef: { name: stockflow-secrets }
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 82
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 256Mi }

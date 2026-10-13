@@ -1,0 +1,34 @@
+# Run before (or as a pre-deploy step of) each rollout:
+#   kubectl -n stockflow delete job stockflow-migrate --ignore-not-found && kubectl apply -f k8s/migrate-job.yaml
+#   kubectl -n stockflow wait --for=condition=complete job/stockflow-migrate --timeout=120s
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: stockflow-migrate
+  namespace: stockflow
+  labels:
+    app.kubernetes.io/name: stockflow
+    app.kubernetes.io/component: migrate
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: migrate
+          image: ghcr.io/israel-jensen/stockflow-app:latest
+          args: ["migrate"]
+          envFrom:
+            - configMapRef: { name: stockflow-config }
+            - secretRef: { name: stockflow-secrets }
+          env:
+            - { name: SEED, value: "false" }
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 82
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 256Mi }

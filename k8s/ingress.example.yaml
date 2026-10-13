@@ -1,0 +1,24 @@
+# Example for ingress-nginx + cert-manager; adjust host, class and TLS to your cluster.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: stockflow
+  namespace: stockflow
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    nginx.ingress.kubernetes.io/proxy-body-size: 20m
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [stockflow.example.com]
+      secretName: stockflow-tls
+  rules:
+    - host: stockflow.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: stockflow-web
+                port: { name: http }

@@ -1,0 +1,16 @@
+# kubectl apply -k k8s/   (create the real Secret first; secret.example.yaml is not included)
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: stockflow
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - deployment.yaml
+  - service.yaml
+  - worker.yaml
+  - ingress.example.yaml
+images:
+  - name: ghcr.io/israel-jensen/stockflow-app
+    newTag: latest
+  - name: ghcr.io/israel-jensen/stockflow-web
+    newTag: latest
