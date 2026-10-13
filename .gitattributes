@@ -9,3 +9,8 @@
 /.github export-ignore
 CHANGELOG.md export-ignore
 .styleci.yml export-ignore
+
+# Shell scripts and container config must keep LF even on Windows checkouts.
+*.sh text eol=lf
+Dockerfile text eol=lf
+docker/** text eol=lf
