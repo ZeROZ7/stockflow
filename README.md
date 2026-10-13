@@ -182,6 +182,108 @@ Open <http://localhost:8000> and sign in with one of the demo users:
 > `composer run setup` does the whole install (dependencies, `.env`, key, migrations with seed data and an asset build) in one go.
 > If you serve the app on a different host or port, add it to `SANCTUM_STATEFUL_DOMAINS` in `.env`.
 
+## Run with Docker
+
+Requires Docker Desktop (Windows 11 + WSL2, macOS) or Docker Engine with Compose v2.
+
+```bash
+docker compose up -d --build          # builds images, starts MySQL, runs migrations + seed, starts php-fpm and nginx
+open http://localhost:8000            # demo@stockflow.test / password
+```
+
+| Service   | What it does                                                                 |
+|-----------|------------------------------------------------------------------------------|
+| `db`      | MySQL 8.4 with a named volume (`db-data`) and a healthcheck; host port 33060 |
+| `migrate` | One-shot: `php artisan migrate --force` (+ `db:seed` when `SEED=true`), then exits |
+| `app`     | php-fpm 8.4 (Alpine), non-root, logs to stderr                               |
+| `web`     | nginx serving `public/` and proxying PHP to `app:9000`, published on `:8000` |
+| `worker`  | Optional queue worker: `docker compose --profile worker up -d`               |
+
+Useful commands:
+
+```bash
+docker compose logs -f app web                      # logs (everything goes to stdout/stderr)
+docker compose exec app php artisan tinker          # artisan inside the container
+SEED=false docker compose up -d                     # skip seeding (it is idempotent anyway)
+docker compose down -v                              # stop and wipe the database
+curl http://localhost:8000/up                       # Laravel health endpoint
+```
+
+Configuration is 100% environment variables. `docker-compose.yml` ships with local-only defaults
+(including a throwaway `APP_KEY`); override them in a `.env.docker` file (git-ignored) or your shell.
+Nothing secret is baked into the images.
+
+**Dev mode (live reload).** Bind-mounts the PHP source into `app` and runs the Vite dev server with HMR:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+```
+
+**Without Docker** nothing changed: `.env.example` still uses SQLite, and `php artisan test` runs on in-memory SQLite.
+
+**Windows / WSL2 tips**
+
+- Clone the repo *inside* the WSL filesystem (e.g. `~/code/stockflow`), not under `C:\` — bind mounts from
+  `/mnt/c` are very slow. Open it with `code .` from WSL.
+- `.gitattributes` forces LF on `*.sh`, `Dockerfile` and `docker/**`. If you cloned before that, run
+  `git rm --cached -r . && git reset --hard` so the entrypoint isn't checked out with CRLF (`exec format error` / `not found`).
+- If port 8000 or 33060 is taken, change the left side of `ports:` in `docker-compose.yml`.
+
+## Deploy to Kubernetes
+
+Plain manifests live in [`k8s/`](k8s) (with a `kustomization.yaml`):
+
+| File                   | Purpose                                                                  |
+|------------------------|--------------------------------------------------------------------------|
+| `namespace.yaml`       | `stockflow` namespace                                                    |
+| `configmap.yaml`       | Non-secret config (`APP_URL`, `DB_HOST`, Sanctum/session domains, ...)   |
+| `secret.example.yaml`  | Shape of the Secret (`APP_KEY`, DB credentials) — example values only    |
+| `deployment.yaml`      | Pod with **nginx + php-fpm**; probes on `/up`; requests/limits           |
+| `worker.yaml`          | Queue worker Deployment (same app image, different command)              |
+| `service.yaml`         | ClusterIP Service on port 80                                             |
+| `ingress.example.yaml` | ingress-nginx + cert-manager example                                     |
+| `migrate-job.yaml`     | Migration Job (`entrypoint migrate`)                                     |
+
+```bash
+# 1. Build and push the two images (target "app" and target "web")
+docker build --target app -t ghcr.io/<you>/stockflow-app:1.0.0 .
+docker build --target web -t ghcr.io/<you>/stockflow-web:1.0.0 .
+docker push ghcr.io/<you>/stockflow-app:1.0.0 && docker push ghcr.io/<you>/stockflow-web:1.0.0
+#    (then set the image names/tags in k8s/kustomization.yaml)
+
+# 2. Namespace + real Secret (never commit it)
+kubectl apply -f k8s/namespace.yaml
+kubectl -n stockflow create secret generic stockflow-secrets \
+  --from-literal=APP_KEY="base64:$(openssl rand -base64 32)" \
+  --from-literal=DB_USERNAME=stockflow --from-literal=DB_PASSWORD='...'
+
+# 3. Migrate, then roll out
+kubectl apply -f k8s/configmap.yaml -f k8s/migrate-job.yaml
+kubectl -n stockflow wait --for=condition=complete job/stockflow-migrate --timeout=180s
+kubectl apply -k k8s/
+```
+
+MySQL is expected to be a managed database or a separate chart (e.g. Bitnami MySQL / an operator);
+point `DB_HOST` in the ConfigMap at it.
+
+### Design notes
+
+- **One image per process, built from one Dockerfile.** Multi-stage: `node` builds Vite assets, `composer`
+  installs prod dependencies, `app` is php-fpm 8.4 Alpine (non-root, uid 82), `web` is nginx with the built
+  `public/` copied in. Both images carry the same hashed assets, so no shared volume is needed.
+- **nginx + php-fpm in the same pod.** They always scale 1:1 and talk over `127.0.0.1:9000`, which avoids an
+  extra Service hop and FastCGI over the network, and makes a rollout atomic (no version skew between static
+  assets and PHP). The queue worker and migrations use the same `app` image in their own Deployment/Job, so
+  they scale and fail independently. In Compose the same two images run as separate services (`app:9000`).
+- **Probes.** Readiness on `GET /up` through nginx (exercises nginx → fpm → Laravel boot); nginx liveness on
+  a static `/nginx-health` and fpm liveness via the FastCGI `/ping`, so a slow database doesn't trigger restarts.
+- **Twelve-factor.** Config only from env (`clear_env = no` in the fpm pool), `LOG_CHANNEL=stderr` with JSON
+  logs, `php artisan optimize` runs at container start (never at build time, so no env is cached in the image),
+  migrations are an explicit step (`migrate` service / Job), not a side effect of every replica starting.
+- **Behind a proxy.** `TRUSTED_PROXIES` enables `X-Forwarded-*` handling for the Ingress; Sanctum's
+  `SANCTUM_STATEFUL_DOMAINS` and `SESSION_DOMAIN` are set per environment (`localhost:8000` in Compose, the
+  real host in the ConfigMap).
+
 ## Testing
 
 ```bash
@@ -198,7 +300,7 @@ The suite covers:
 - **Architecture tests:** the domain and application layers can't depend on Laravel, Eloquent or HTTP, and there are no `dd()`/`dump()` leftovers.
 - **Feature tests:** CSRF cookie, login/logout and 401s, catalog CRUD and validation, the full PO lifecycle through HTTP with stock checks, role authorization (403), domain errors mapped to HTTP (409/422) and the dashboard's low-stock query.
 
-GitHub Actions (`.github/workflows/tests.yml`) runs Pint and Pest on PHP 8.3 and 8.4, plus the type-check and Vite build, on every push and pull request.
+GitHub Actions (`.github/workflows/tests.yml`) runs Pint and Pest on PHP 8.3 and 8.4, plus the type-check and Vite build, on every push and pull request. A third job lints the Dockerfile (hadolint) and builds both images (no push).
 
 ## Design decisions
 
